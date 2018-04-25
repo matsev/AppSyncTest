@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Hello World CloudFormation Template for AWS AppSync
+
+
+Resources:
+
+  AppSyncGraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: Hello World API
+      AuthenticationType: API_KEY
+      LogConfig:
+        CloudWatchLogsRoleArn: !GetAtt AppSyncCloudWatchLogsRole.Arn
+        FieldLogLevel: NONE
+
+  AppSyncGraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Definition: |
+        schema {
+          query: Query
+        }
+        type Query {
+          greet(name: String): Greeting!
+        }
+        type Greeting {
+          greeting: String!
+        }
+
+  GreetingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          'use strict';
+          exports.handler = (event, context, callback) => {
+            console.log('Event:', JSON.stringify(event));
+            const name = event.name || 'World';
+            const responseData = { greeting: `Hello ${name}!` };
+            callback(null, responseData);
+          };
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs6.10
+
+  GreetingDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: GreetingDataSource
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt DataSourceServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt GreetingLambda.Arn
+
+  GreetingResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: greet
+      DataSourceName: !GetAtt GreetingDataSource.Name
+      RequestMappingTemplate: |
+        {
+            "version" : "2017-02-28",
+            "operation": "Invoke",
+            "payload": $util.toJson($context.args)
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  ApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      Expires: 1555501879
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  DataSourceServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeLambdaPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                - lambda:invokeFunction
+                Resource:
+                - !Sub ${GreetingLambda.Arn}
+                - !Sub ${GreetingLambda.Arn}:*
+
+  AppSyncCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchCreateLogsPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+
+
+Outputs:
+
+  ApiUrl:
+    Value: !GetAtt AppSyncGraphQLApi.GraphQLUrl
+    Description: Url of the GraphQL API
+
+  ApiKey:
+    Value: !GetAtt ApiKey.ApiKey
+    Description: The API key of the GraphQL API
