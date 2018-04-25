@@ -12,7 +12,7 @@ Resources:
       AuthenticationType: API_KEY
       LogConfig:
         CloudWatchLogsRoleArn: !GetAtt AppSyncCloudWatchLogsRole.Arn
-        FieldLogLevel: NONE
+        FieldLogLevel: ERROR
 
   AppSyncGraphQLSchema:
     Type: AWS::AppSync::GraphQLSchema
@@ -21,9 +21,13 @@ Resources:
       Definition: |
         schema {
           query: Query
+          mutation: Mutation
         }
         type Query {
           greet(name: String): Greeting!
+        }
+        type Mutation {
+          greet(name: String!): Greeting!
         }
         type Greeting {
           greeting: String!
@@ -45,29 +49,53 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs6.10
 
-  GreetingDataSource:
+  QueryDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: GreetingDataSource
+      Name: QueryDataSource
       Type: AWS_LAMBDA
       ServiceRoleArn: !GetAtt DataSourceServiceRole.Arn
       LambdaConfig:
         LambdaFunctionArn: !GetAtt GreetingLambda.Arn
 
-  GreetingResolver:
+  MutationDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: MutationDataSource
+      Type: NONE
+
+  QueryResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncGraphQLSchema
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Query
       FieldName: greet
-      DataSourceName: !GetAtt GreetingDataSource.Name
+      DataSourceName: !GetAtt QueryDataSource.Name
       RequestMappingTemplate: |
         {
             "version" : "2017-02-28",
             "operation": "Invoke",
             "payload": $util.toJson($context.args)
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  MutationResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: greet
+      DataSourceName: !GetAtt MutationDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "payload": {
+            "greeting": "Hello ${context.arguments.name}!",
+          }
         }
       ResponseMappingTemplate: $util.toJson($context.result)
 

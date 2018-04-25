@@ -56,9 +56,9 @@ if [[ -z $url ]]; then
 fi
 
 if [[ -z $name ]]; then
-    query='{ "query": "{ greet { greeting } }" }'
+    data='{ "query": "mutation { greet { greeting } }" }'
 else
-    query='{ "query": "{ greet(name: \"'$name'\") { greeting } }" }'
+    data='{ "query": "mutation { greet(name: \"'$name'\") { greeting } }" }'
 fi
 
 
@@ -66,5 +66,5 @@ curl \
   -X POST \
   -H "Content-Type: application/json" \
   -H "x-api-key: ${apiKey}" \
-  --data "${query}" \
+  --data "${data}" \
   ${url}
