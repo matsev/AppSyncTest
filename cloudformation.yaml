@@ -22,12 +22,17 @@ Resources:
         schema {
           query: Query
           mutation: Mutation
+          subscription: Subscription
         }
         type Query {
           greet(name: String): Greeting!
         }
         type Mutation {
           greet(name: String!): Greeting!
+        }
+        type Subscription {
+          greeted(name: String): Greeting
+          @aws_subscribe(mutations: ["greet"])
         }
         type Greeting {
           greeting: String!
@@ -166,9 +171,13 @@ Resources:
 Outputs:
 
   ApiUrl:
-    Value: !GetAtt AppSyncGraphQLApi.GraphQLUrl
     Description: Url of the GraphQL API
+    Value: !GetAtt AppSyncGraphQLApi.GraphQLUrl
 
   ApiKey:
-    Value: !GetAtt ApiKey.ApiKey
     Description: The API key of the GraphQL API
+    Value: !GetAtt ApiKey.ApiKey
+
+  ApiId:
+    Description: The id of the GraphQL API
+    Value: !GetAtt AppSyncGraphQLApi.ApiId
