@@ -6,12 +6,20 @@ script=$(basename $0)
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 rootDir="$( cd "$scriptDir/.." && pwd )"
 region="eu-west-1"
+envFile=${scriptDir}/env.sh
+
 
 usage="usage: $script [-a|--api-key -u|--url [-n|--name]
     -h| --help              this help
     -a| --api-key           API key
     -u| --url               GraphQL url
     -n| --name              name (optional)"
+
+
+if [ -f ${envFile} ]; then
+    source ${envFile}
+fi
+
 
 #
 # For Bash parsing explanation, please see https://stackoverflow.com/a/14203146

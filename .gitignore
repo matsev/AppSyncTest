@@ -13,3 +13,4 @@
 # generated files
 target/
 node_modules/
+env.sh

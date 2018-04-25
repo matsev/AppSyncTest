@@ -66,3 +66,8 @@ apiKey=(`aws cloudformation describe-stacks --stack-name $stackName \
 
 echo "GraphQL API URL: $url"
 echo "GraphQL API key: $apiKey"
+
+rm -rf env.sh
+echo "#!/usr/bin/env bash" >> env.sh
+echo "export url=$url" >> env.sh
+echo "export apiKey=$apiKey" >> env.sh
